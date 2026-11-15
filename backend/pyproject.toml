@@ -1,0 +1,3 @@
+[tool.vercel]
+# Explicit ASGI entrypoint for the Vercel project whose Root Directory is backend.
+entrypoint = "app.main:app"

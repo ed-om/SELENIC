@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
 from html import escape
 from datetime import timezone
@@ -12,9 +13,10 @@ from pydantic import TypeAdapter, ValidationError
 
 from .horizons import HorizonsError, analyze_site, diagnose_horizons
 from .models import AnalysisRequest, AnalysisResult, CompareRequest, MissionSimulationRequest, SiteInput, VisibilitySummaryRequest
-from .terrain import TerrainDataError, build_terrain_profile
 from .visibility import summarize_visibility
 from .simulation import simulate_mission
+
+logger = logging.getLogger("selenic.api")
 
 app = FastAPI(
     title="SELENIC API",
@@ -125,6 +127,18 @@ async def terrain_profiles(
     vertical_datum_confirmed: bool = Form(False),
 ) -> dict[str, object]:
     """Upload one DEM once and create profiles for 2–5 sites."""
+    # Keep native geospatial libraries out of application startup. Vercel can
+    # serve health, ephemeris, visibility, and simulation routes even if a
+    # platform-specific GDAL/Rasterio shared-library import is unavailable.
+    try:
+        from .terrain import TerrainDataError, build_terrain_profile
+    except Exception as exc:  # noqa: BLE001 - native imports can raise OSError too
+        logger.exception("Terrain dependencies could not be loaded")
+        raise HTTPException(
+            status_code=503,
+            detail="Terrain processing is unavailable in this deployment. Check the NumPy, Rasterio/GDAL, and PyProj runtime dependencies.",
+        ) from exc
+
     try:
         sites = TypeAdapter(list[SiteInput]).validate_json(sites_json)
     except ValidationError as exc:
@@ -183,6 +197,15 @@ async def terrain_profile(
     vertical_datum_confirmed: bool = Form(False),
 ) -> dict[str, object]:
     """Create a local horizon obstruction profile from a user-provided lunar DEM GeoTIFF."""
+    try:
+        from .terrain import TerrainDataError, build_terrain_profile
+    except Exception as exc:  # noqa: BLE001 - native imports can raise OSError too
+        logger.exception("Terrain dependencies could not be loaded")
+        raise HTTPException(
+            status_code=503,
+            detail="Terrain processing is unavailable in this deployment. Check the NumPy, Rasterio/GDAL, and PyProj runtime dependencies.",
+        ) from exc
+
     try:
         site = SiteInput.model_validate_json(site_json)
         # Read at most 100 MB + 1 byte so the upload limit is enforced before
