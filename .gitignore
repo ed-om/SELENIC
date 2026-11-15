@@ -1,0 +1,29 @@
+# Node
+node_modules/
+frontend/dist/
+frontend/.env
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+backend/.env
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Large user-supplied lunar terrain data
+*.tif
+*.tiff
+/data/
+
+# Persistent Horizons response cache
+backend/data/*.sqlite3
+backend/data/*.db
+
+# TypeScript incremental build metadata
+*.tsbuildinfo
